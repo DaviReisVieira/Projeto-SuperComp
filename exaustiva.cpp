@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <stack>
+#include <omp.h>
 
 using namespace std;
 
@@ -60,8 +61,10 @@ void busca_exaustiva(vector<Filme>& filmes, vector<Categoria>& categorias, Marat
 
     long int todas_combinacoes = pow(2, size_of_filmes);
     cout << "Quantidade total de combinações: " << todas_combinacoes << endl;
+    long int i;
 
-    for (int i = 0; i < todas_combinacoes; i++) {
+    #pragma omp parallel for
+    for (i = 0; i < todas_combinacoes; i++) {
         int num_films = 0;
         vector<int> categorias_vistas(categorias.size(), 0);
         stack<Filme> filmes_vistos;
@@ -72,18 +75,10 @@ void busca_exaustiva(vector<Filme>& filmes, vector<Categoria>& categorias, Marat
 
         for (int j = 0; j < size_of_filmes; j++) {
             if (aux[j] == 1) {
-                bitset<24> horario_analisado;
-
-                if (filmes[j].inicio > filmes[j].fim) {
-                    horario_analisado = gera_horario(filmes[j].inicio, 24) | gera_horario(0, filmes[j].fim);
-                } else {
-                    horario_analisado = gera_horario(filmes[j].inicio, filmes[j].fim);
-                }
-
-                if ((maratona_atual.disponibilidade & horario_analisado) == 0) {
+                if ((maratona_atual.disponibilidade & filmes[j].horario) == 0) {
                     num_films++;
                     filmes_vistos.push(filmes[j]);
-                    maratona_atual.disponibilidade |= horario_analisado;
+                    maratona_atual.disponibilidade |= filmes[j].horario;
                     categorias_vistas[filmes[j].categoria - 1]++;
                 }
 
@@ -92,13 +87,12 @@ void busca_exaustiva(vector<Filme>& filmes, vector<Categoria>& categorias, Marat
             }
         }
         
+        #pragma omp critical
         if (num_films > maximo) {
             maximo = num_films;
             maratona.filmes.clear();
             maratona.disponibilidade.reset();
-        }
 
-        if (num_films == maximo) {
             while (!filmes_vistos.empty()) {
                 Filme filme = filmes_vistos.top();
                 filmes_vistos.pop();
